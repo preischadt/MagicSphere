@@ -2,7 +2,7 @@
 
 This is the software of a puzzle I have created, similar to Rubik's cube but kind of different. You can freely copy, add, distribute, etc. To know more, read the MIT licence terms.
 
-### LICENCE ###
+# LICENCE #
 
 Copyright (c) 2015 Lucas Preischadt Pinheiro
 
