@@ -1,9 +1,6 @@
 /*
-para compilar:
+compiling:
 	gcc -Wall -o sphere sphere.c -lglut -lGL -lGLU -lm
-TODO:
-	Undo Last (multiplica a direção por -1 e refaz o movimento [o vetor nunca é deletado])
-		Só precisa checar se não é o primeiro movimento
 */
 
 #include <GL/gl.h>
@@ -133,38 +130,26 @@ Vector vectorialProduct(Vector v1, Vector v2){
 	return v;
 }
 
-// Inicializa parametros de rendering
-void Inicializa(void){
-	GLfloat luzAmbiente[4]={0.2,0.2,0.2,1.0};
-	GLfloat luzDifusa[4]={0.7,0.7,0.7,0.5};		 // "cor"
-	GLfloat luzEspecular[4]={1.0, 1.0, 1.0, 1.0};// "brilho" 
-	GLfloat posicaoLuz[4]={30, 30, -0.8*CAMERA_DISTANCE, 1.0};
-	// Capacidade de brilho do material
-	GLfloat especularidade[4]={1.0,1.0,1.0,1.0}; 
+void initialize(void){
+	GLfloat ambient[4]={0.2,0.2,0.2,1.0};
+	GLfloat diffuse[4]={0.7,0.7,0.7,0.5};
+	GLfloat specular[4]={1.0, 1.0, 1.0, 1.0};
+	GLfloat position[4]={30, 30, -0.8*CAMERA_DISTANCE, 1.0};
+	GLfloat specularity[4]={1.0,1.0,1.0,1.0};
 	GLint especMaterial = 50;
- 	// Especifica que a cor de fundo da janela sera preta
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	// Habilita o modelo de colorizacao de Gouraud
 	glShadeModel(GL_SMOOTH);
-	// Define a refletancia do material 
-	glMaterialfv(GL_FRONT,GL_SPECULAR, especularidade);
-	// Define a concentracao do brilho
+	glMaterialfv(GL_FRONT,GL_SPECULAR, specularity);
 	glMateriali(GL_FRONT,GL_SHININESS,especMaterial);
-	// Ativa o uso da luz ambiente 
-	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, luzAmbiente);
-	// Define os parametros da luz de numero 0
-	glLightfv(GL_LIGHT0, GL_AMBIENT, luzAmbiente); 
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, luzDifusa);
-	glLightfv(GL_LIGHT0, GL_SPECULAR, luzEspecular);
-	glLightfv(GL_LIGHT0, GL_POSITION, posicaoLuz );
-	// Habilita a definicao da cor do material a partir da cor corrente
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
+	glLightfv(GL_LIGHT0, GL_AMBIENT, ambient); 
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, specular);
+	glLightfv(GL_LIGHT0, GL_POSITION, position );
 	glEnable(GL_COLOR_MATERIAL);
 	glEnable(GL_NORMALIZE);
-	// Habilita o uso de iluminacao
 	glEnable(GL_LIGHTING);
-	// Habilita a luz de numero 0
 	glEnable(GL_LIGHT0);
-	// Habilita o depth-buffering
 	glEnable(GL_DEPTH_TEST);
 	fovy_=45;
 	
@@ -173,34 +158,20 @@ void Inicializa(void){
   	glGetDoublev(GL_MODELVIEW_MATRIX, Game.rotationMatrix);
 }
 
-// Funcao usada para especificar o volume de visualizacao
-void EspecificaParametrosVisualizacao(void)
-{
+void configVision(void){
 	glLineWidth(4.0);
-	// Especifica sistema de coordenadas de projecao
 	glMatrixMode(GL_PROJECTION);
-	// Inicializa sistema de coordenadas de projecao
 	glLoadIdentity();
-	// Especifica a projecao perspectiva
 	gluPerspective(fovy_,fAspect,0.4,500);
-	// Especifica sistema de coordenadas do modelo
 	glMatrixMode(GL_MODELVIEW);
-	// Inicializa sistema de coordenadas do modelo
 	glLoadIdentity();
-	// Especifica posicao do observador e do alvo
-  	//gluLookAt(0, 0, -CAMERA_DISTANCE, 0, 0, 0, 0,-1,0);
 }
 
-// Funcao callback chamada quando o tamanho da janela � alterado 
-void AlteraTamanhoJanela(GLsizei w, GLsizei h)
-{
-	// Para previnir uma divis�o por zero
+void changeWindowSize(GLsizei w, GLsizei h){
 	if ( h == 0 ) h = 1;
-	// Especifica o tamanho da viewport
     glViewport(0, 0, w, h);
-	// Calcula a correcao de aspecto
 	fAspect = (GLfloat)w/(GLfloat)h;
-	EspecificaParametrosVisualizacao();
+	configVision();
 	Game.screen.width = w;
 	Game.screen.height = h;
 }
@@ -543,7 +514,6 @@ void applyMove(void){
 				Game.triangle[i].average.y += Game.triangle[i].vertex[j].y;
 				Game.triangle[i].average.z += Game.triangle[i].vertex[j].z;
 			}
-			//Game.triangle[i].average = vectorialInversion(Game.triangle[i].average, Game.move.vector);
 			Game.triangle[i].average.x /= 3.0;
 			Game.triangle[i].average.y /= 3.0;
 			Game.triangle[i].average.z /= 3.0;
@@ -685,7 +655,6 @@ void mouseMove(int x, int y){
 	}
 }
 
-// Programa Principal
 int main(int argc, char** argv){
 	printf("Created by Lucas Preischadt Pinheiro\n\n"
 			"Controls:\n"
@@ -695,7 +664,6 @@ int main(int argc, char** argv){
 			"\tSpacebar: reset puzzle\n"
 			"\tTab: swap format (sphere/cube)\n");
 	
-	//Game
 	resetGame();
 	Game.format = 0;
 	memset(Game.key, 0, sizeof(Game.key));
@@ -706,7 +674,7 @@ int main(int argc, char** argv){
 	glutInitWindowSize(800, 600);
 	glutCreateWindow("Visualizacao 3D");
 	glutDisplayFunc(draw);
-    glutReshapeFunc(AlteraTamanhoJanela);
+    glutReshapeFunc(changeWindowSize);
 	glutKeyboardFunc(keyboardDown);
 	glutKeyboardUpFunc(keyboardUp);
 	glutSpecialFunc(keyboardSpecialDown);
@@ -714,7 +682,7 @@ int main(int argc, char** argv){
 	glutMouseFunc(mouseClick);
 	glutMotionFunc(mouseMove);
 	glutPassiveMotionFunc(mouseMove);
-	Inicializa();
+	initialize();
 	glutTimerFunc(100, game_loop, 1);
 	glutMainLoop();
 	
