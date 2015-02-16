@@ -27,6 +27,8 @@ compiling:
 #define ROTATION_SPEED 1.0
 #define MOUSE_ROTATION_SPEED 250.0
 #define MOVE_SPEED 2.0
+#define DRAG_MOVE_SPEED 50.0
+#define MIN_MOVE_ANGLE 5.0
 #define DETAIL 5
 #define VALUE pow(3.0, -0.5)
 
@@ -441,7 +443,7 @@ void draw(void){
   	glMultMatrixd(Game.rotationMatrix);
   	for(i=0; i<24; i++){
 		glPushMatrix();
-			if(Game.move.flag){
+			if(Game.move.flag || (Game.mouse.selected>=0 && Game.move.angle*Game.move.direction>=MIN_MOVE_ANGLE)){
 				v = Game.triangle[i].average;
 				scalar = scalarProduct(v, Game.move.vector);
 				if(scalar>0.0) glRotatef(Game.move.angle, Game.move.vector.x, Game.move.vector.y, Game.move.vector.z);
@@ -452,21 +454,22 @@ void draw(void){
 			glGetIntegerv(GL_VIEWPORT, viewport);
 			
 			if(Game.drawType==0){
-				if(Game.mouse.selected==i) glColor3f(0.5, 0.5, 0.5);
-				else glColor3f(Game.triangle[i].color.red, Game.triangle[i].color.green, Game.triangle[i].color.blue);
+				glColor3f(Game.triangle[i].color.red, Game.triangle[i].color.green, Game.triangle[i].color.blue);
 			}else{
 				color = (i+1.5)/25.0;
 				glColor3f(color, color, color);
 			}
 			drawTriangle(DETAIL, Game.triangle[i].vertex[0], Game.triangle[i].vertex[1], Game.triangle[i].vertex[2]);
 			
-			for(j=0; j<3; j++){
-				tmp = Game.triangle[i].vertex[j];
-				if(Game.format==0){
-					gluProject(tmp.x*SPHERE_RADIUS, tmp.y*SPHERE_RADIUS, tmp.z*SPHERE_RADIUS, modelView, projection, viewport, &Game.triangle[i].window[j].x, &Game.triangle[i].window[j].y, &Game.triangle[i].window[j].z);
-				}else{
-					normalizePositionCube(&tmp);
-					gluProject(tmp.x*CUBE_RADIUS, tmp.y*CUBE_RADIUS, tmp.z*CUBE_RADIUS, modelView, projection, viewport, &Game.triangle[i].window[j].x, &Game.triangle[i].window[j].y, &Game.triangle[i].window[j].z);
+			if(Game.mouse.selected==-1){
+				for(j=0; j<3; j++){
+					tmp = Game.triangle[i].vertex[j];
+					if(Game.format==0){
+						gluProject(tmp.x*SPHERE_RADIUS, tmp.y*SPHERE_RADIUS, tmp.z*SPHERE_RADIUS, modelView, projection, viewport, &Game.triangle[i].window[j].x, &Game.triangle[i].window[j].y, &Game.triangle[i].window[j].z);
+					}else{
+						normalizePositionCube(&tmp);
+						gluProject(tmp.x*CUBE_RADIUS, tmp.y*CUBE_RADIUS, tmp.z*CUBE_RADIUS, modelView, projection, viewport, &Game.triangle[i].window[j].x, &Game.triangle[i].window[j].y, &Game.triangle[i].window[j].z);
+					}
 				}
 			}
 			
@@ -589,61 +592,11 @@ void keyboardSpecialUp(int key, int x, int y){
 	Game.skey[key] = 0;
 }
 
-void mouseClick(int button, int state, int x, int y){
-	Vector m, v[3], a[2];
-	int i, maxId, negativeFlag, maxNegative;
-	float scalar, maxScalar = -1;
-	Game.mouse.button[button] = !state;
-	if(!Game.move.flag){
-		if(button==0){
-			if(Game.mouse.button[button]){
-				Game.mouse.click.x = x;
-				Game.mouse.click.y = Game.screen.height-y;
-				Game.mouse.selected = select(Game.mouse.click.x, Game.mouse.click.y);
-			}else if(Game.mouse.selected>=0){
-				Game.mouse.x = x;
-				Game.mouse.y = Game.screen.height-y;
-				m.x = Game.mouse.x - Game.mouse.click.x;
-				m.y = Game.mouse.y - Game.mouse.click.y;
-				m.z = 0.0;
-				for(i=0; i<3; i++){
-					v[i].x = Game.triangle[Game.mouse.selected].window[(i+1)%3].x - Game.triangle[Game.mouse.selected].window[i].x;
-					v[i].y = Game.triangle[Game.mouse.selected].window[(i+1)%3].y - Game.triangle[Game.mouse.selected].window[i].y;
-					v[i].z = 0.0;
-					scalar = scalarProduct(m, v[i]);
-					if(scalar<0){
-						scalar *= -1;
-						negativeFlag = 1;
-					}else{
-						negativeFlag = 0;
-					}
-					if(scalar>maxScalar){
-						maxScalar = scalar;
-						maxId = i;
-						maxNegative = negativeFlag;
-					}
-				}
-				a[1] = Game.triangle[Game.mouse.selected].vertex[maxId];
-				a[2] = Game.triangle[Game.mouse.selected].vertex[(maxId+1)%3];
-				Game.move.vector = vectorialProduct(a[1], a[2]);
-				Game.move.angle = 0.0;
-				Game.move.flag = 1;
-				if(maxNegative) Game.move.direction = -1;
-				else Game.move.direction = 1;
-				Game.mouse.selected = -1;
-				Game.mouse.lastDrag.x = Game.mouse.x;
-				Game.mouse.lastDrag.y = Game.mouse.y;
-			}
-		}
-	}
-	
-	if(Game.mouse.selected==-1 && button==2 && Game.mouse.button[button]){
-		Game.mouse.lastDrag.x = Game.mouse.x;
-		Game.mouse.lastDrag.y = Game.mouse.y;
-	}
-}
-
 void mouseMove(int x, int y){
+	Vector m, v[3], a[2], av;
+	int i, maxId, negativeFlag, maxNegative;
+	float scalar, maxScalar = -1, maxModule;
+	
 	Game.mouse.x = x;
 	Game.mouse.y = Game.screen.height-y;
 	
@@ -653,6 +606,73 @@ void mouseMove(int x, int y){
 		Game.mouse.lastDrag.x = Game.mouse.x;
 		Game.mouse.lastDrag.y = Game.mouse.y;
 	}
+	
+	if(Game.mouse.selected>=0 && Game.mouse.button[0]){
+		Game.mouse.x = x;
+		Game.mouse.y = Game.screen.height-y;
+		m.x = Game.mouse.x - Game.mouse.click.x;
+		m.y = Game.mouse.y - Game.mouse.click.y;
+		m.z = 0.0;
+		for(i=0; i<3; i++){
+			v[i].x = Game.triangle[Game.mouse.selected].window[(i+1)%3].x - Game.triangle[Game.mouse.selected].window[i].x;
+			v[i].y = Game.triangle[Game.mouse.selected].window[(i+1)%3].y - Game.triangle[Game.mouse.selected].window[i].y;
+			v[i].z = 0.0;
+			scalar = scalarProduct(m, v[i]);
+			if(scalar<0){
+				scalar *= -1;
+				negativeFlag = 1;
+			}else{
+				negativeFlag = 0;
+			}
+			if(scalar>maxScalar){
+				maxScalar = scalar;
+				maxId = i;
+				maxNegative = negativeFlag;
+			}
+		}
+		maxModule = vectorModule(v[maxId]);
+		a[1] = Game.triangle[Game.mouse.selected].vertex[maxId];
+		a[2] = Game.triangle[Game.mouse.selected].vertex[(maxId+1)%3];
+		av.x = a[1].x - a[2].x;
+		av.y = a[1].y - a[2].y;
+		av.z = a[1].z - a[2].z;
+		Game.move.vector = vectorialProduct(a[1], a[2]);
+		Game.move.angle = DRAG_MOVE_SPEED*vectorModule(av)*vectorModule(m)/maxModule;
+		if(maxNegative) Game.move.direction = -1;
+		else Game.move.direction = 1;
+		Game.move.angle *= Game.move.direction;
+	}
+}
+
+void mouseClick(int button, int state, int x, int y){
+	Game.mouse.button[button] = !state;
+	if(!Game.move.flag){
+		if(button==0){
+			if(Game.mouse.button[button]){
+				Game.mouse.click.x = x;
+				Game.mouse.click.y = Game.screen.height-y;
+				Game.mouse.selected = select(Game.mouse.click.x, Game.mouse.click.y);
+			}
+		}
+	}
+	
+	if(Game.mouse.selected>=0 && button==0 && !Game.mouse.button[button]){
+		Game.mouse.selected = -1;
+		if(Game.move.angle*Game.move.direction>=MIN_MOVE_ANGLE){
+			Game.move.flag = 1;
+		}else{
+			Game.move.angle = 0;
+		}
+		Game.mouse.lastDrag.x = Game.mouse.x;
+		Game.mouse.lastDrag.y = Game.mouse.y;
+	}
+	
+	if(Game.mouse.selected==-1 && button==2 && Game.mouse.button[button]){
+		Game.mouse.lastDrag.x = Game.mouse.x;
+		Game.mouse.lastDrag.y = Game.mouse.y;
+	}
+	
+	mouseMove(x, y);
 }
 
 int main(int argc, char** argv){
@@ -672,7 +692,7 @@ int main(int argc, char** argv){
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 	glutInitWindowSize(800, 600);
-	glutCreateWindow("Visualizacao 3D");
+	glutCreateWindow("Preischadt's Sphere");
 	glutDisplayFunc(draw);
     glutReshapeFunc(changeWindowSize);
 	glutKeyboardFunc(keyboardDown);
