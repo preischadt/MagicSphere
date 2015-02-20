@@ -179,8 +179,16 @@ void changeWindowSize(GLsizei w, GLsizei h){
 }
 
 void resetGame(void){
-	Vertex vertex[6][5]={0}, tmp;
+	Vertex vertex[6][5], tmp;
 	int i,j,k;
+	
+	for(i=0; i<6; i++){
+		for(j=0; j<5; j++){
+			vertex[i][j].x = 0.0;
+			vertex[i][j].y = 0.0;
+			vertex[i][j].z = 0.0;
+		}
+	}
 	
 	Color color[6];
 	color[0].red = 0.0;
@@ -378,7 +386,6 @@ void drawTriangle(int detail, Vertex v0, Vertex v1, Vertex v2){
 }
 
 void drawLine(int detail, Vertex v0, Vertex v1){
-	int i;
 	float module;
 	Vertex nv;
 	--detail;
@@ -483,7 +490,7 @@ void draw(void){
  	if(Game.drawType==0) glutSwapBuffers();
 }
 
-int select(int x, int y){
+int selectTriangle(int x, int y){
 	int ret;
 	Game.drawType = 1;
 	glDisable(GL_LIGHTING);
@@ -525,7 +532,7 @@ void applyMove(void){
 }
 
 void shuffle(void){
-	int i, triangle, vertex1, vertex2;
+	int triangle, vertex1, vertex2;
 	Vector a[2];
 	triangle = rand()%24;
 	vertex1 = rand()%3;
@@ -539,7 +546,6 @@ void shuffle(void){
 }
 
 void swapFormat(void){
-	int i,j;
 	Game.format = !Game.format;
 }
 
@@ -651,7 +657,7 @@ void mouseClick(int button, int state, int x, int y){
 			if(Game.mouse.button[button]){
 				Game.mouse.click.x = x;
 				Game.mouse.click.y = Game.screen.height-y;
-				Game.mouse.selected = select(Game.mouse.click.x, Game.mouse.click.y);
+				Game.mouse.selected = selectTriangle(Game.mouse.click.x, Game.mouse.click.y);
 			}
 		}
 	}
