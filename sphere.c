@@ -191,23 +191,35 @@ void resetGame(void){
 	}
 	
 	Color color[6];
+	
+	//Blue
 	color[0].red = 0.0;
-	color[0].green = 1.0;
-	color[0].blue = 0.0;
+	color[0].green = 0.0;
+	color[0].blue = 1.0;
+	
+	//Green
 	color[1].red = 0.0;
-	color[1].green = 0.0;
-	color[1].blue = 1.0;
+	color[1].green = 1.0;
+	color[1].blue = 0.0;
+	
+	//Yellow
 	color[2].red = 1.0;
 	color[2].green = 1.0;
-	color[2].blue = 1.0;
+	color[2].blue = 0.0;
+	
+	//White
 	color[3].red = 1.0;
 	color[3].green = 1.0;
-	color[3].blue = 0.0;
+	color[3].blue = 1.0;
+	
+	//Orange
 	color[4].red = 1.0;
-	color[4].green = 0.0;
+	color[4].green = 0.75;
 	color[4].blue = 0.0;
+	
+	//Red
 	color[5].red = 1.0;
-	color[5].green = 0.75;
+	color[5].green = 0.0;
 	color[5].blue = 0.0;
 	
 	vertex[0][0].x = -1.0;
@@ -450,7 +462,7 @@ void draw(void){
   	glMultMatrixd(Game.rotationMatrix);
   	for(i=0; i<24; i++){
 		glPushMatrix();
-			if(Game.move.flag || (Game.mouse.selected>=0 && Game.move.angle*Game.move.direction>=MIN_MOVE_ANGLE)){
+			if(Game.move.flag || Game.mouse.selected>=0){
 				v = Game.triangle[i].average;
 				scalar = scalarProduct(v, Game.move.vector);
 				if(scalar>0.0) glRotatef(Game.move.angle, Game.move.vector.x, Game.move.vector.y, Game.move.vector.z);
@@ -488,6 +500,12 @@ void draw(void){
 	}
 	
  	if(Game.drawType==0) glutSwapBuffers();
+}
+
+int translate(int id){
+	int v[] = {8, 5, 6, 7, 16, 15, 14, 13, 24, 21, 22, 23, 4, 1, 2, 3, 19, 20, 17, 18, 9, 12, 11, 10};
+	if(id<0) return id;
+	return v[id];
 }
 
 int selectTriangle(int x, int y){
@@ -658,6 +676,7 @@ void mouseClick(int button, int state, int x, int y){
 				Game.mouse.click.x = x;
 				Game.mouse.click.y = Game.screen.height-y;
 				Game.mouse.selected = selectTriangle(Game.mouse.click.x, Game.mouse.click.y);
+				//printf("%d\n", translate(Game.mouse.selected));
 			}
 		}
 	}
