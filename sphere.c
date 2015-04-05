@@ -75,6 +75,7 @@ struct{
 	double rotationMatrix[16];
 	int drawType;
 	int format;
+	int wireframeMode;
 }Game;
 
 GLfloat fAspect;
@@ -286,6 +287,7 @@ void resetGame(void){
 	Game.drawType = 0;
 	Game.mouse.selected = -1;
 	Game.move.flag = 0;
+	Game.wireframeMode = 0;
 }
 
 void normalizePositionCube(Vertex *vertex){
@@ -362,23 +364,57 @@ void normalizePosition(Vertex *vertex){
 
 void drawTriangle(int detail, Vertex v0, Vertex v1, Vertex v2){
 	int i;
-	float module;
-	Vertex vertex[3] = {v0, v1, v2}, nv[3];
+	float module, radius;
+	Vertex vertex[3] = {v0, v1, v2}, nv[3], average;
 	--detail;
+	detail = Game.format==0? detail:0;
 	if(detail==0){
 		glBegin(GL_TRIANGLES);
+		average.x = 0.0;
+		average.y = 0.0;
+		average.z = 0.0;
 		if(Game.format==0){
 			for(i=0; i<3; i++){
 				glNormal3f(-vertex[i].x, -vertex[i].y, -vertex[i].z);
 				glVertex3f(vertex[i].x*SPHERE_RADIUS, vertex[i].y*SPHERE_RADIUS, vertex[i].z*SPHERE_RADIUS);
+				
+				average.x += vertex[i].x;
+				average.y += vertex[i].y;
+				average.z += vertex[i].z;
 			}
 		}else{
 			for(i=0; i<3; i++){
 				normalizePositionCube(&vertex[i]);
 				glNormal3f(-vertex[i].x, -vertex[i].y, -vertex[i].z);
 				glVertex3f(vertex[i].x*CUBE_RADIUS, vertex[i].y*CUBE_RADIUS, vertex[i].z*CUBE_RADIUS);
+				
+				average.x += vertex[i].x;
+				average.y += vertex[i].y;
+				average.z += vertex[i].z;
 			}
 		}
+		
+		//internal faces	
+		average.x /= 12.0;
+		average.y /= 12.0;
+		average.z /= 12.0;
+		radius = Game.format==0? SPHERE_RADIUS:CUBE_RADIUS;
+		
+		glNormal3f(average.x-vertex[2].x/3.0, average.y-vertex[2].y/3.0, average.z-vertex[2].z/3.0);
+		glVertex3f(0, 0, 0);
+		glVertex3f(vertex[0].x*radius, vertex[0].y*radius, vertex[0].z*radius);
+		glVertex3f(vertex[1].x*radius, vertex[1].y*radius, vertex[1].z*radius);
+		
+		glNormal3f(average.x-vertex[1].x/3.0, average.y-vertex[1].y/3.0, average.z-vertex[1].z/3.0);
+		glVertex3f(0, 0, 0);
+		glVertex3f(vertex[0].x*radius, vertex[0].y*radius, vertex[0].z*radius);
+		glVertex3f(vertex[2].x*radius, vertex[2].y*radius, vertex[2].z*radius);
+		
+		glNormal3f(average.x-vertex[0].x/3.0, average.y-vertex[0].y/3.0, average.z-vertex[0].z/3.0);
+		glVertex3f(0, 0, 0);
+		glVertex3f(vertex[1].x*radius, vertex[1].y*radius, vertex[1].z*radius);
+		glVertex3f(vertex[2].x*radius, vertex[2].y*radius, vertex[2].z*radius);
+		
 		glEnd();
 	}else{
 		for(i=0; i<3; i++){
@@ -401,6 +437,7 @@ void drawLine(int detail, Vertex v0, Vertex v1){
 	float module;
 	Vertex nv;
 	--detail;
+	detail = Game.format==0? detail:0;
 	if(detail==0){
 		if(Game.format==0){
 			glBegin(GL_LINES);
@@ -419,6 +456,8 @@ void drawLine(int detail, Vertex v0, Vertex v1){
 				glVertex3f(v0.x*LINE_MODIFIER*CUBE_RADIUS, v0.y*LINE_MODIFIER*CUBE_RADIUS, v0.z*LINE_MODIFIER*CUBE_RADIUS);
 				glNormal3f(-v1.x, -v1.y, -v1.z);
 				glVertex3f(v1.x*LINE_MODIFIER*CUBE_RADIUS, v1.y*LINE_MODIFIER*CUBE_RADIUS, v1.z*LINE_MODIFIER*CUBE_RADIUS);
+				glNormal3f(0, 0, 0);
+				glVertex3f(0, 0, 0);
 				glNormal3f(-v0.x, -v0.y, -v0.z);
 				glVertex3f(v0.x*LINE_MODIFIER*CUBE_RADIUS, v0.y*LINE_MODIFIER*CUBE_RADIUS, v0.z*LINE_MODIFIER*CUBE_RADIUS);
 			glEnd();
@@ -444,6 +483,9 @@ void draw(void){
 	GLdouble modelView[16];
 	GLdouble projection[16];
 	GLint viewport[4];
+	
+	if(Game.drawType==0 && Game.wireframeMode) glClearColor(0.5, 0.5, 0.5, 1.0);
+	else glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);
 	
@@ -478,7 +520,7 @@ void draw(void){
 				color = (i+1.5)/25.0;
 				glColor3f(color, color, color);
 			}
-			drawTriangle(DETAIL, Game.triangle[i].vertex[0], Game.triangle[i].vertex[1], Game.triangle[i].vertex[2]);
+			if(!Game.wireframeMode || Game.drawType==1 || i==20) drawTriangle(DETAIL, Game.triangle[i].vertex[0], Game.triangle[i].vertex[1], Game.triangle[i].vertex[2]);
 			
 			if(Game.mouse.selected==-1){
 				for(j=0; j<3; j++){
@@ -600,6 +642,7 @@ void keyboardDown(unsigned char key, int x, int y){
 	if(Game.mouse.selected==-1){
 		if(key==KEY_TAB && Game.key[key]==0) swapFormat();
 	}
+	if(key=='z' && Game.key[key]==0) Game.wireframeMode=!Game.wireframeMode;;
 	Game.key[key] = 1;
 }
 
@@ -707,7 +750,8 @@ int main(int argc, char** argv){
 			"\tLeft Click: move puzzle\n"
 			"\tR: shuffle puzzle\n"
 			"\tSpacebar: reset puzzle\n"
-			"\tTab: swap format (sphere/cube)\n");
+			"\tTab: swap format (sphere/cube)\n"
+			"\tZ: wireframe mode\n");
 	
 	resetGame();
 	Game.format = 0;
